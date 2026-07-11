@@ -4,7 +4,7 @@ import { Moon, Sun, Search, Volume2, VolumeX, Bookmark, BookmarkCheck, BookOpen,
 export default function App() {
   const [drugsData, setDrugsData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('light'); // 'light', 'dark', or 'black'
   const [activeTab, setActiveTab] = useState('list');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,11 +20,9 @@ export default function App() {
 
   // 1. Fetch Data & Initialize Theme/Bookmarks
   useEffect(() => {
-    // Fetch data from GitHub
     fetch('https://raw.githubusercontent.com/3ekodomo/dgdrugs/refs/heads/main/drugsinfo.json')
       .then(res => res.json())
       .then(data => {
-        // Handle case where JSON might be wrapped in an object or just an array
         const arr = Array.isArray(data) ? data : (data.drugs || []);
         setDrugsData(arr);
         if (arr.length > 0) {
@@ -37,7 +35,6 @@ export default function App() {
         setLoading(false);
       });
 
-    // Theme & Bookmarks initialization
     const savedTheme = localStorage.getItem('ayurveda-theme');
     if (savedTheme) {
       setTheme(savedTheme);
@@ -52,7 +49,8 @@ export default function App() {
 
   // Update DOM when theme changes
   useEffect(() => {
-    if (theme === 'dark') {
+    // Both 'dark' and 'black' themes get the 'dark' tailwind class for baseline dark mode styling
+    if (theme === 'dark' || theme === 'black') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -61,7 +59,11 @@ export default function App() {
   }, [theme]);
 
   // Helper Functions
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleTheme = () => setTheme(prev => {
+    if (prev === 'light') return 'dark';
+    if (prev === 'dark') return 'black';
+    return 'light';
+  });
 
   const toggleBookmark = (drugName, e) => {
     if(e) e.stopPropagation();
@@ -74,26 +76,21 @@ export default function App() {
     });
   };
 
-  // Resolves relative image paths to the raw GitHub URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
     return `https://raw.githubusercontent.com/3ekodomo/dgdrugs/refs/heads/main/${imagePath}`;
   };
 
-  // Robust TTS Function with hi-IN locale for Devanagari
   const speakText = (text, e) => {
     if (e) e.stopPropagation();
     if (!('speechSynthesis' in window)) {
       alert("Text-to-Speech is not supported in this browser.");
       return;
     }
-    
-    // Stop any currently playing audio immediately
     window.speechSynthesis.cancel(); 
-    
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'hi-IN'; // Essential for reading Devanagari scripts
+    utterance.lang = 'hi-IN';
     utterance.rate = 0.85; 
     window.speechSynthesis.speak(utterance);
   };
@@ -108,7 +105,6 @@ export default function App() {
     return text;
   };
 
-  // Sort and Filter Logic
   const processedDrugs = useMemo(() => {
     let filtered = drugsData.filter(d => {
       const nameMatch = d.name?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -127,7 +123,6 @@ export default function App() {
     return filtered;
   }, [drugsData, searchQuery, sortMode, bookmarkedIds]);
 
-  // Flashcard logic
   const handleNextCard = (e) => {
     if(e) e.stopPropagation();
     setIsFlipped(false);
@@ -139,10 +134,10 @@ export default function App() {
   const currentFlashcard = drugsData[flashcardIndex];
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'black' ? 'bg-black text-slate-100' : theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
       
       {/* Header */}
-      <header className={`sticky top-0 z-10 backdrop-blur-md shadow-sm border-b ${theme === 'dark' ? 'bg-slate-900/80 border-slate-700' : 'bg-white/80 border-slate-200'}`}>
+      <header className={`sticky top-0 z-10 backdrop-blur-md shadow-sm border-b ${theme === 'black' ? 'bg-black/80 border-zinc-800' : theme === 'dark' ? 'bg-slate-900/80 border-slate-700' : 'bg-white/80 border-slate-200'}`}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold font-serif">
@@ -162,8 +157,9 @@ export default function App() {
             <button 
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title={`Switch to ${theme === 'light' ? 'Dark' : theme === 'dark' ? 'AMOLED' : 'Light'} Mode`}
             >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'light' ? <Moon size={20} /> : theme === 'dark' ? <Moon size={20} fill="currentColor" /> : <Sun size={20} />}
             </button>
           </div>
         </div>
@@ -207,7 +203,7 @@ export default function App() {
                   placeholder="Search by name, botanical, or family..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-900'}`}
+                  className={`w-full pl-10 pr-4 py-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-shadow ${theme === 'black' ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500' : theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-900'}`}
                 />
               </div>
 
@@ -248,11 +244,11 @@ export default function App() {
                   return (
                     <div 
                       key={index} 
-                      className={`relative rounded-2xl border transition-all duration-300 overflow-hidden ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
+                      className={`relative rounded-2xl border transition-all duration-300 overflow-hidden ${theme === 'black' ? 'bg-black border-zinc-800' : theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}
                     >
-                      {/* Accordion Header - Always Visible */}
+                      {/* Accordion Header */}
                       <div 
-                        className={`p-4 cursor-pointer flex justify-between items-center transition-colors ${isExpanded && theme === 'dark' ? 'bg-slate-700/30' : isExpanded ? 'bg-emerald-50' : ''}`}
+                        className={`p-4 cursor-pointer flex justify-between items-center transition-colors ${isExpanded && theme === 'black' ? 'bg-zinc-900/50' : isExpanded && theme === 'dark' ? 'bg-slate-700/30' : isExpanded ? 'bg-emerald-50' : ''}`}
                         onClick={() => {
                            setExpandedId(isExpanded ? null : drug.name);
                            if (!isExpanded && ttsEnabled) speakText(generateSpokenText(drug));
@@ -292,14 +288,14 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Accordion Body - Collapsible Details */}
+                      {/* Accordion Body */}
                       {isExpanded && (
                         <div className="p-4 border-t border-slate-100 dark:border-slate-700/50 animation-slideDown bg-slate-50/50 dark:bg-slate-900/20">
                           
                           <div className="flex flex-col md:flex-row gap-6">
                             {/* Image Section */}
                             <div className="w-full md:w-1/3 shrink-0">
-                              <div className={`aspect-square w-full rounded-xl overflow-hidden flex items-center justify-center border-2 border-dashed ${theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+                              <div className={`aspect-square w-full rounded-xl overflow-hidden flex items-center justify-center border-2 border-dashed ${theme === 'black' ? 'border-zinc-800 bg-black' : theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                                 {imageUrl ? (
                                   <img 
                                     src={imageUrl} 
@@ -320,22 +316,20 @@ export default function App() {
 
                             {/* Details Section */}
                             <div className="w-full md:w-2/3 space-y-4 text-sm sm:text-base">
-                              
-                              {/* Properties Grid using Devanagari */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
                                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block uppercase mb-1">Rasa (रस)</span>
                                   <span className="font-serif">{drug.rasa || '-'}</span>
                                 </div>
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
                                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block uppercase mb-1">Guna (गुण)</span>
                                   <span className="font-serif">{drug.guna || '-'}</span>
                                 </div>
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
                                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block uppercase mb-1">Veerya (वीर्य)</span>
                                   <span className="font-serif">{drug.veerya || '-'}</span>
                                 </div>
-                                <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
+                                <div className="bg-white dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center shadow-sm">
                                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block uppercase mb-1">Vipaka (विपाक)</span>
                                   <span className="font-serif">{drug.vipaka || '-'}</span>
                                 </div>
@@ -410,21 +404,24 @@ export default function App() {
           <div className="max-w-lg mx-auto w-full pt-8 pb-12 flex flex-col items-center">
             
             <p className="text-center text-slate-500 dark:text-slate-400 mb-6">
-              Tap the card to reveal details. Great for quick memorization.
+              Tap the card to reveal details. Tap again for the next card.
             </p>
 
             {/* Flashcard Container */}
             <div 
               className={`w-full min-h-[460px] rounded-3xl p-8 cursor-pointer border-2 transition-all duration-500 flex flex-col justify-center relative shadow-xl hover:shadow-2xl ${
                 isFlipped 
-                  ? theme === 'dark' ? 'bg-slate-800 border-emerald-500/50' : 'bg-white border-emerald-400' 
-                  : theme === 'dark' ? 'bg-gradient-to-br from-emerald-900/40 to-slate-800 border-slate-700' : 'bg-gradient-to-br from-emerald-50 to-white border-slate-200'
+                  ? theme === 'black' ? 'bg-black border-emerald-500/50' : theme === 'dark' ? 'bg-slate-800 border-emerald-500/50' : 'bg-white border-emerald-400' 
+                  : theme === 'black' ? 'bg-gradient-to-br from-emerald-950/40 to-black border-zinc-800' : theme === 'dark' ? 'bg-gradient-to-br from-emerald-900/40 to-slate-800 border-slate-700' : 'bg-gradient-to-br from-emerald-50 to-white border-slate-200'
               }`}
-              onClick={() => {
-                const flipState = !isFlipped;
-                setIsFlipped(flipState);
-                if (flipState && ttsEnabled) {
-                  speakText(generateSpokenText(currentFlashcard));
+              onClick={(e) => {
+                if (!isFlipped) {
+                  setIsFlipped(true);
+                  if (ttsEnabled) {
+                    speakText(generateSpokenText(currentFlashcard));
+                  }
+                } else {
+                  handleNextCard(e);
                 }
               }}
             >
@@ -434,7 +431,7 @@ export default function App() {
                      <BookOpen className="text-emerald-500" size={36} />
                   </div>
                   <h2 className="text-4xl font-bold text-slate-800 dark:text-white">{currentFlashcard?.name}</h2>
-                  <p className="text-sm text-slate-400 font-medium uppercase tracking-widest mt-12 animate-pulse">Tap to flip</p>
+                  <p className="text-sm text-slate-400 font-medium uppercase tracking-widest mt-12 animate-pulse">Tap to reveal</p>
                 </div>
               ) : (
                 <div className="h-full flex flex-col animation-fadeIn">
@@ -466,7 +463,7 @@ export default function App() {
                         {currentFlashcard?.family && (
                           <div>
                             <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">Family</h4>
-                            <p className="font-medium bg-slate-100 dark:bg-slate-700 inline-block px-2 py-0.5 rounded-lg text-sm">{currentFlashcard?.family}</p>
+                            <p className="font-medium bg-slate-100 dark:bg-slate-700/50 inline-block px-2 py-0.5 rounded-lg text-sm">{currentFlashcard?.family}</p>
                           </div>
                         )}
                         
@@ -497,6 +494,8 @@ export default function App() {
                         </div>
                       )}
                    </div>
+                   
+                   <p className="text-center text-xs text-slate-400 mt-4 animate-pulse uppercase tracking-widest">Tap anywhere for next card</p>
                 </div>
               )}
             </div>
@@ -515,7 +514,7 @@ export default function App() {
                 onClick={handleNextCard}
                 className="flex-1 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 font-medium transition-colors shadow-lg shadow-emerald-500/30"
               >
-                <Shuffle size={20} /> Next Card
+                <Shuffle size={20} /> Skip
               </button>
             </div>
 

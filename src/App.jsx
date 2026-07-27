@@ -101,7 +101,7 @@ export default function App() {
     const primaryName = botanical.split('/')[0].trim();
     const query = encodeURIComponent(primaryName);
     // Uses the Plantnet global search query parameter fallback while respecting provided path
-    return `https://identify.plantnet.org/k-world-flora/species?q=${query}&sortBy=name&sortOrder=asc`;
+    return `https://identify.plantnet.org/k-world-flora/species?search=${query}&sortBy=name&sortOrder=asc`;
   };
 
   const speakText = (text, e) => {

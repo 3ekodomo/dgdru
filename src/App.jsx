@@ -79,7 +79,7 @@ export default function App() {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
-    return `https://raw.githubusercontent.com/3ekodomo/dgdrugs/refs/heads/main/${imagePath}`;
+    return `https://raw.githubusercontent.com/3ekodomo/dgdru/refs/heads/main/${imagePath}`;
   };
 
   const speakText = (text, e) => {

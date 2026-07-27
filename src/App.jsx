@@ -89,6 +89,21 @@ export default function App() {
     return `https://commons.wikimedia.org/w/index.php?search=${query}&title=Special%3AMediaSearch&type=image`;
   };
 
+  const getFOIUrl = (botanical) => {
+    if (!botanical) return '#';
+    const primaryName = botanical.split('/')[0].trim();
+    const query = encodeURIComponent(primaryName).replace(/%20/g, '+');
+    return `https://www.flowersofindia.net/risearch/search.php?query=${query}&stpos=0&stype=AND`;
+  };
+
+  const getPlantnetUrl = (botanical) => {
+    if (!botanical) return '#';
+    const primaryName = botanical.split('/')[0].trim();
+    const query = encodeURIComponent(primaryName);
+    // Uses the Plantnet global search query parameter fallback while respecting provided path
+    return `https://identify.plantnet.org/k-world-flora/species?q=${query}&sortBy=name&sortOrder=asc`;
+  };
+
   const speakText = (text, e) => {
     if (e) e.stopPropagation();
     if (!('speechSynthesis' in window)) {
@@ -329,17 +344,37 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* Wikimedia search link */}
+                              {/* Search Links */}
                               {drug.botanical && (
-                                <a 
-                                  href={getWikimediaUrl(drug.botanical)} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  [Wikimedia] 
-                                </a>
+                                <div className="mt-3 flex items-center justify-center gap-3 w-full flex-wrap">
+                                  <a 
+                                    href={getWikimediaUrl(drug.botanical)} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    [Wikimedia] 
+                                  </a>
+                                  <a 
+                                    href={getFOIUrl(drug.botanical)} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    [FOI] 
+                                  </a>
+                                  <a 
+                                    href={getPlantnetUrl(drug.botanical)} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    [Plantnet] 
+                                  </a>
+                                </div>
                               )}
                             </div>
 
@@ -500,15 +535,33 @@ export default function App() {
                       )}
                       
                       {currentFlashcard?.botanical && (
-                         <div className="mb-4">
+                         <div className="mb-4 flex items-center justify-center gap-3 w-full flex-wrap">
                            <a 
                              href={getWikimediaUrl(currentFlashcard.botanical)} 
                              target="_blank" 
                              rel="noopener noreferrer"
-                             className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 hover:underline w-fit"
+                             className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
                              onClick={(e) => e.stopPropagation()}
                            >
                              [Wikimedia] 
+                           </a>
+                           <a 
+                             href={getFOIUrl(currentFlashcard.botanical)} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                             onClick={(e) => e.stopPropagation()}
+                           >
+                             [FOI] 
+                           </a>
+                           <a 
+                             href={getPlantnetUrl(currentFlashcard.botanical)} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                             onClick={(e) => e.stopPropagation()}
+                           >
+                             [Plantnet] 
                            </a>
                          </div>
                       )}

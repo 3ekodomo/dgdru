@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Moon, Sun, Search, Volume2, VolumeX, Bookmark, BookmarkCheck, BookOpen, List, Shuffle, ChevronDown, ChevronUp, Image as ImageIcon, Info } from 'lucide-react';
+import { Moon, Sun, Search, Volume2, VolumeX, Bookmark, BookmarkCheck, BookOpen, List, Shuffle, ChevronDown, ChevronUp, Image as ImageIcon, Info, X } from 'lucide-react';
 
 export default function App() {
   const [drugsData, setDrugsData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState('light'); // 'light', 'dark', or 'black'
+  const [theme, setTheme] = useState('light');
   const [activeTab, setActiveTab] = useState('list');
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,7 +18,9 @@ export default function App() {
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // 1. Fetch Data & Initialize Theme/Bookmarks
+  // Image Preview state
+  const [previewImage, setPreviewImage] = useState(null);
+
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/3ekodomo/dgdrugs/refs/heads/main/drugsinfo.json')
       .then(res => res.json())
@@ -47,9 +49,7 @@ export default function App() {
     }
   }, []);
 
-  // Update DOM when theme changes
   useEffect(() => {
-    // Both 'dark' and 'black' themes get the 'dark' tailwind class for baseline dark mode styling
     if (theme === 'dark' || theme === 'black') {
       document.documentElement.classList.add('dark');
     } else {
@@ -80,6 +80,13 @@ export default function App() {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
     return `https://raw.githubusercontent.com/3ekodomo/dgdru/refs/heads/main/${imagePath}`;
+  };
+
+  const getWikimediaUrl = (botanical) => {
+    if (!botanical) return '#';
+    const primaryName = botanical.split('/')[0].trim();
+    const query = encodeURIComponent(primaryName).replace(/%20/g, '+');
+    return `https://commons.wikimedia.org/w/index.php?search=${query}&title=Special%3AMediaSearch&type=image`;
   };
 
   const speakText = (text, e) => {
@@ -294,24 +301,46 @@ export default function App() {
                           
                           <div className="flex flex-col md:flex-row gap-6">
                             {/* Image Section */}
-                            <div className="w-full md:w-1/3 shrink-0">
-                              <div className={`aspect-square w-full rounded-xl overflow-hidden flex items-center justify-center border-2 border-dashed ${theme === 'black' ? 'border-zinc-800 bg-black' : theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+                            <div className="w-full md:w-1/3 shrink-0 flex flex-col items-center">
+                              <div className={`aspect-square w-full rounded-xl overflow-hidden flex items-center justify-center border-2 border-dashed relative group ${theme === 'black' ? 'border-zinc-800 bg-black' : theme === 'dark' ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                                 {imageUrl ? (
-                                  <img 
-                                    src={imageUrl} 
-                                    alt={drug.name} 
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }}
-                                  />
+                                  <>
+                                    <img 
+                                      src={imageUrl} 
+                                      alt={drug.name} 
+                                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPreviewImage(imageUrl);
+                                      }}
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                      <Search className="text-white drop-shadow-md" size={32} />
+                                    </div>
+                                  </>
                                 ) : null}
                                 <div className={`flex-col items-center justify-center text-slate-400 p-4 text-center ${imageUrl ? 'hidden' : 'flex'}`}>
                                   <ImageIcon size={32} className="mb-2 opacity-50" />
                                   <span className="text-xs">No image available</span>
                                 </div>
                               </div>
+
+                              {/* Wikimedia search link */}
+                              {drug.botanical && (
+                                <a 
+                                  href={getWikimediaUrl(drug.botanical)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  [Wikimedia] 
+                                </a>
+                              )}
                             </div>
 
                             {/* Details Section */}
@@ -454,9 +483,34 @@ export default function App() {
 
                    <div className="space-y-4 flex-grow overflow-y-auto pr-2 custom-scrollbar text-sm sm:text-base">
                       {currentFlashcard?.image && (
-                        <div className="w-full h-40 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 mb-4 bg-white dark:bg-slate-900">
-                          <img src={getImageUrl(currentFlashcard.image)} alt={currentFlashcard.name} className="w-full h-full object-cover" />
+                        <div className="w-full h-40 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 mb-2 bg-white dark:bg-slate-900 relative group">
+                          <img 
+                            src={getImageUrl(currentFlashcard.image)} 
+                            alt={currentFlashcard.name} 
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(getImageUrl(currentFlashcard.image));
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <Search className="text-white drop-shadow-md" size={32} />
+                          </div>
                         </div>
+                      )}
+                      
+                      {currentFlashcard?.botanical && (
+                         <div className="mb-4">
+                           <a 
+                             href={getWikimediaUrl(currentFlashcard.botanical)} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 hover:underline w-fit"
+                             onClick={(e) => e.stopPropagation()}
+                           >
+                             [Wikimedia] 
+                           </a>
+                         </div>
                       )}
 
                       <div className="grid grid-cols-2 gap-2">
@@ -521,6 +575,32 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Global Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animation-fadeIn"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-full flex items-center justify-center">
+            <button 
+              className="absolute -top-12 right-0 sm:-right-12 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewImage(null);
+              }}
+            >
+              <X size={24} />
+            </button>
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* Global Styles for Animations and Scrollbars */}
       <style dangerouslySetInnerHTML={{__html: `

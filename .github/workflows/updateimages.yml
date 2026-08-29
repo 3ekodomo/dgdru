@@ -40,13 +40,11 @@ jobs:
                       with urllib.request.urlopen(req) as response, open(filepath, 'wb') as out_file:
                           out_file.write(response.read())
                       print(f'Success! Removing entry for {filename}.')
-                      # Skip appending this line to the new file content
                       continue
                   except Exception as e:
                       print(f'Failed to download {url}: {e}')
                       new_lines.append(line)
               else:
-                  # Keep empty lines or text that doesn't match the format
                   new_lines.append(line)
                   
           with open(file_path, 'w') as f:
@@ -58,8 +56,6 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # Stage the images folder (captures both the new images and the modified image.md)
           git add images/
           
-          # Commit and push only if there are actual changes
-          git diff --staged --quiet || (git commit -m \"chore: bulk update images and clean list\" && git push)
+          git diff --staged --quiet || (git commit -m "chore: bulk update images and clean list" && git push)

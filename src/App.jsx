@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Moon, Sun, Search, Volume2, VolumeX, Bookmark, BookmarkCheck, BookOpen, List, Shuffle, ChevronDown, ChevronUp, Image as ImageIcon, Info, X } from 'lucide-react';
+import { Moon, Sun, Search, Volume2, VolumeX, Bookmark, BookmarkCheck, BookOpen, List, Shuffle, ChevronDown, ChevronUp, Image as ImageIcon, Info, X, Layers } from 'lucide-react';
 
 export default function App() {
   const [drugsData, setDrugsData] = useState([]);
@@ -17,6 +17,20 @@ export default function App() {
   // Flashcard state
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // Swipe Cards state
+  const [seenDrugs, setSeenDrugs] = useState([]);
+  const [swipeSettings, setSwipeSettings] = useState({
+    hideSeen: false,
+    randomOrder: false,
+    repeatUnknowns: true
+  });
+  const [swipeSessionActive, setSwipeSessionActive] = useState(false);
+  const [swipeQueue, setSwipeQueue] = useState([]);
+  const [swipeCurrentIndex, setSwipeCurrentIndex] = useState(0);
+  const [swipeUnknowns, setSwipeUnknowns] = useState([]);
+  const [swipeFlipped, setSwipeFlipped] = useState(false);
+  const [swipeTouchStart, setSwipeTouchStart] = useState(null);
 
   // Image Preview state
   const [previewImage, setPreviewImage] = useState(null);
@@ -47,7 +61,25 @@ export default function App() {
     if (savedBookmarks) {
       try { setBookmarkedIds(JSON.parse(savedBookmarks)); } catch (e) { }
     }
+
+    const savedSeenDrugs = localStorage.getItem('ayurveda-seen-drugs');
+    if (savedSeenDrugs) {
+      try { setSeenDrugs(JSON.parse(savedSeenDrugs)); } catch (e) { }
+    }
+
+    const savedSwipeSettings = localStorage.getItem('ayurveda-swipe-settings');
+    if (savedSwipeSettings) {
+      try { setSwipeSettings(JSON.parse(savedSwipeSettings)); } catch (e) { }
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('ayurveda-seen-drugs', JSON.stringify(seenDrugs));
+  }, [seenDrugs]);
+
+  useEffect(() => {
+    localStorage.setItem('ayurveda-swipe-settings', JSON.stringify(swipeSettings));
+  }, [swipeSettings]);
 
   useEffect(() => {
     if (theme === 'dark' || theme === 'black') {
@@ -57,6 +89,82 @@ export default function App() {
     }
     localStorage.setItem('ayurveda-theme', theme);
   }, [theme]);
+
+  // Swipe Card Functions
+  const startSwipeSession = () => {
+    let queue = [...drugsData];
+    if (swipeSettings.hideSeen) {
+      queue = queue.filter(d => !seenDrugs.includes(d.name));
+    }
+    if (swipeSettings.randomOrder) {
+      queue = queue.sort(() => Math.random() - 0.5);
+    }
+    setSwipeQueue(queue);
+    setSwipeCurrentIndex(0);
+    setSwipeUnknowns([]);
+    setSwipeFlipped(false);
+    setSwipeSessionActive(true);
+  };
+
+  const endSwipeSession = () => {
+    setSwipeSessionActive(false);
+    setSwipeQueue([]);
+    setSwipeUnknowns([]);
+  };
+
+  const handleSwipeAction = (action) => {
+    const currentDrug = swipeQueue[swipeCurrentIndex];
+    if (!currentDrug) return;
+
+    if (action === 'known') {
+      if (!seenDrugs.includes(currentDrug.name)) {
+        setSeenDrugs(prev => [...prev, currentDrug.name]);
+      }
+    } else if (action === 'unknown') {
+      setSwipeUnknowns(prev => [...prev, currentDrug]);
+    }
+
+    advanceSwipeCard();
+  };
+
+  const advanceSwipeCard = () => {
+    setSwipeFlipped(false);
+    setTimeout(() => {
+      setSwipeCurrentIndex(prev => prev + 1);
+    }, 150);
+  };
+
+  useEffect(() => {
+    if (swipeSessionActive && swipeCurrentIndex >= swipeQueue.length && swipeQueue.length > 0) {
+      if (swipeSettings.repeatUnknowns && swipeUnknowns.length > 0) {
+        setSwipeQueue(swipeUnknowns);
+        setSwipeCurrentIndex(0);
+        setSwipeUnknowns([]);
+      }
+    }
+  }, [swipeCurrentIndex, swipeQueue.length, swipeSessionActive, swipeSettings.repeatUnknowns, swipeUnknowns]);
+
+  const onSwipeTouchStart = (e) => {
+    setSwipeTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onSwipeTouchMove = (e) => {
+  };
+
+  const onSwipeTouchEndFn = (e) => {
+    if (!swipeTouchStart) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const distance = swipeTouchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && swipeFlipped) {
+      handleSwipeAction('unknown');
+    } else if (isRightSwipe && swipeFlipped) {
+      handleSwipeAction('known');
+    }
+    setSwipeTouchStart(null);
+  };
 
   // Helper Functions
   const toggleTheme = () => setTheme(prev => {
@@ -187,18 +295,24 @@ export default function App() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="max-w-4xl mx-auto px-4 flex gap-6 border-t border-transparent">
+        <div className="max-w-4xl mx-auto px-4 flex gap-6 border-t border-transparent overflow-x-auto custom-scrollbar">
             <button 
               onClick={() => setActiveTab('list')}
-              className={`py-3 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'list' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+              className={`py-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'list' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
             >
               <List size={18} /> Drug List
             </button>
             <button 
               onClick={() => setActiveTab('flashcards')}
-              className={`py-3 flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'flashcards' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+              className={`py-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'flashcards' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
             >
               <BookOpen size={18} /> Flashcards
+            </button>
+            <button
+              onClick={() => setActiveTab('swipe')}
+              className={`py-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'swipe' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-medium' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+            >
+              <Layers size={18} /> Swipe Cards
             </button>
         </div>
       </header>
@@ -625,6 +739,229 @@ export default function App() {
               </button>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB 3: SWIPE CARDS */}
+        {!loading && activeTab === 'swipe' && (
+          <div className="max-w-lg mx-auto w-full pt-8 pb-12 flex flex-col items-center">
+            {!swipeSessionActive ? (
+              <div className={`w-full p-8 rounded-3xl border shadow-sm ${theme === 'black' ? 'bg-black border-zinc-800' : theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                <div className="flex items-center gap-3 mb-6">
+                   <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <Layers size={24} />
+                   </div>
+                   <div>
+                     <h2 className="text-2xl font-bold">Swipe Cards</h2>
+                     <p className="text-sm text-slate-500 dark:text-slate-400">Review your knowledge</p>
+                   </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 cursor-pointer">
+                    <div>
+                      <span className="font-medium block">Hide Seen Drugs</span>
+                      <span className="text-xs text-slate-500">Don't show drugs I already know</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={swipeSettings.hideSeen}
+                      onChange={(e) => setSwipeSettings(prev => ({...prev, hideSeen: e.target.checked}))}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 cursor-pointer">
+                    <div>
+                      <span className="font-medium block">Random Order</span>
+                      <span className="text-xs text-slate-500">Shuffle the cards</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={swipeSettings.randomOrder}
+                      onChange={(e) => setSwipeSettings(prev => ({...prev, randomOrder: e.target.checked}))}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 cursor-pointer">
+                    <div>
+                      <span className="font-medium block">Repeat Unknowns</span>
+                      <span className="text-xs text-slate-500">Review 'I don't know' cards at the end</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={swipeSettings.repeatUnknowns}
+                      onChange={(e) => setSwipeSettings(prev => ({...prev, repeatUnknowns: e.target.checked}))}
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  onClick={startSwipeSession}
+                  className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-lg transition-colors shadow-lg shadow-emerald-500/30"
+                >
+                  Start Session
+                </button>
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-center">
+                {swipeCurrentIndex >= swipeQueue.length ? (
+                  <div className={`w-full p-8 rounded-3xl border text-center shadow-sm ${theme === 'black' ? 'bg-black border-zinc-800' : theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                     <div className="w-16 h-16 mx-auto bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
+                        <BookmarkCheck size={32} />
+                     </div>
+                     <h2 className="text-2xl font-bold mb-2">Session Complete!</h2>
+                     <p className="text-slate-500 dark:text-slate-400 mb-8">You've reviewed all cards in this session.</p>
+
+                     <div className="flex gap-4">
+                        <button
+                          onClick={() => {
+                            setSeenDrugs([]);
+                            endSwipeSession();
+                          }}
+                          className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Reset Progress
+                        </button>
+                        <button
+                          onClick={endSwipeSession}
+                          className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                        >
+                          Done
+                        </button>
+                     </div>
+                  </div>
+                ) : (
+                  <div className="w-full relative">
+                    {/* Progress Indicator */}
+                    <div className="text-center text-sm font-medium text-slate-400 mb-4">
+                      Card {swipeCurrentIndex + 1} of {swipeQueue.length}
+                    </div>
+
+                    <div className="relative">
+                      {/* Left/Right Tap Zones (only active when flipped) */}
+                      {swipeFlipped && (
+                        <>
+                          <div
+                            className="absolute left-0 top-0 bottom-0 w-1/4 z-10 cursor-pointer flex items-center justify-start pl-2"
+                            onClick={(e) => { e.stopPropagation(); handleSwipeAction('unknown'); }}
+                          >
+                             {/* Optional visual indicator could go here */}
+                          </div>
+                          <div
+                            className="absolute right-0 top-0 bottom-0 w-1/4 z-10 cursor-pointer flex items-center justify-end pr-2"
+                            onClick={(e) => { e.stopPropagation(); handleSwipeAction('known'); }}
+                          >
+                          </div>
+                        </>
+                      )}
+
+                      {/* Main Swipe Card */}
+                      <div
+                        className={`w-full min-h-[460px] rounded-3xl p-8 cursor-pointer border-2 transition-all duration-500 flex flex-col justify-center relative shadow-xl hover:shadow-2xl ${
+                          swipeFlipped
+                            ? theme === 'black' ? 'bg-black border-emerald-500/50' : theme === 'dark' ? 'bg-slate-800 border-emerald-500/50' : 'bg-white border-emerald-400'
+                            : theme === 'black' ? 'bg-gradient-to-br from-emerald-950/40 to-black border-zinc-800' : theme === 'dark' ? 'bg-gradient-to-br from-emerald-900/40 to-slate-800 border-slate-700' : 'bg-gradient-to-br from-emerald-50 to-white border-slate-200'
+                        }`}
+                        onClick={(e) => {
+                          if (!swipeFlipped) {
+                            setSwipeFlipped(true);
+                            if (ttsEnabled) {
+                              speakText(generateSpokenText(swipeQueue[swipeCurrentIndex]));
+                            }
+                          }
+                        }}
+                        onTouchStart={onSwipeTouchStart}
+                        onTouchMove={onSwipeTouchMove}
+                        onTouchEnd={onSwipeTouchEndFn}
+                      >
+                        {!swipeFlipped ? (
+                          <div className="text-center space-y-4">
+                            <div className="w-20 h-20 mx-auto bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-4 border-4 border-white dark:border-slate-800 shadow-md">
+                               <Layers className="text-emerald-500" size={36} />
+                            </div>
+                            <h2 className="text-4xl font-bold text-slate-800 dark:text-white">{swipeQueue[swipeCurrentIndex]?.name}</h2>
+                            <p className="text-sm text-slate-400 font-medium uppercase tracking-widest mt-12 animate-pulse">Tap to reveal</p>
+                          </div>
+                        ) : (
+                          <div className="h-full flex flex-col animation-fadeIn pointer-events-none relative z-0">
+                             <div className="border-b pb-4 mb-4 border-slate-100 dark:border-slate-700">
+                               <div className="flex justify-between items-start pointer-events-auto">
+                                  <div>
+                                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                                      {swipeQueue[swipeCurrentIndex]?.name}
+                                    </h2>
+                                    <p className="text-slate-500 dark:text-slate-400 italic">{swipeQueue[swipeCurrentIndex]?.botanical}</p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => speakText(generateSpokenText(swipeQueue[swipeCurrentIndex]), e)}
+                                    className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-500"
+                                  >
+                                    <Volume2 size={20} />
+                                  </button>
+                               </div>
+                             </div>
+
+                             <div className="space-y-4 flex-grow overflow-y-auto pr-2 custom-scrollbar text-sm sm:text-base pointer-events-auto">
+                                {swipeQueue[swipeCurrentIndex]?.image && (
+                                  <div className="w-full h-40 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 mb-2 bg-white dark:bg-slate-900 relative group">
+                                    <img
+                                      src={getImageUrl(swipeQueue[swipeCurrentIndex].image)}
+                                      alt={swipeQueue[swipeCurrentIndex].name}
+                                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPreviewImage(getImageUrl(swipeQueue[swipeCurrentIndex].image));
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  {swipeQueue[swipeCurrentIndex]?.family && (
+                                    <div>
+                                      <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">Family</h4>
+                                      <p className="font-medium bg-slate-100 dark:bg-slate-700/50 inline-block px-2 py-0.5 rounded-lg text-sm">{swipeQueue[swipeCurrentIndex]?.family}</p>
+                                    </div>
+                                  )}
+
+                                  {swipeQueue[swipeCurrentIndex]?.parts && (
+                                    <div>
+                                      <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">Parts</h4>
+                                      <p className="font-serif">{swipeQueue[swipeCurrentIndex]?.parts}</p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {swipeQueue[swipeCurrentIndex]?.indications && (
+                                  <div>
+                                    <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400 mb-1">Indications</h4>
+                                    <p className="leading-relaxed font-serif">{swipeQueue[swipeCurrentIndex]?.indications}</p>
+                                  </div>
+                                )}
+                             </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons Indicator (visual hint for taps/swipes) */}
+                    {swipeFlipped && (
+                      <div className="flex justify-between items-center mt-6 text-sm font-medium px-4">
+                        <div className="flex items-center gap-2 text-rose-500 opacity-80">
+                           <ChevronDown className="rotate-90" size={16} /> Don't Know (Left)
+                        </div>
+                        <div className="flex items-center gap-2 text-emerald-500 opacity-80">
+                           I Know (Right) <ChevronDown className="-rotate-90" size={16} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

@@ -18,7 +18,7 @@ jobs:
           python3 -c "
           import re, urllib.request, os
           
-          file_path = 'images/image.md'
+          file_path = 'image.md'
           try:
               with open(file_path, 'r') as f:
                   lines = f.readlines()
